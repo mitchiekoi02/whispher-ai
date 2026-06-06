@@ -1,1 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Whisper AI</title>
+  <style>
+    body { font-family: Arial; background:#111; color:#fff; margin:0; }
+    .container { max-width:600px; margin:auto; padding:20px; }
+    #chat { height:60vh; overflow-y:auto; border:1px solid #333; padding:10px; }
+    .msg { margin:10px 0; }
+    .user { color:#4fc3f7; }
+    .ai { color:#81c784; }
+    input, button { width:100%; padding:10px; margin-top:10px; }
+    .hidden { display:none; }
+    .card { padding:10px; border:1px solid #333; margin:5px; cursor:pointer; }
+  </style>
+</head>
+<body>
 
+<div class="container">
+
+  <!-- LOGIN -->
+  <div id="loginBox">
+    <h2>Login</h2>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="signup()">Sign Up</button>
+  </div>
+
+  <!-- CHARACTER SELECT -->
+  <div id="characterBox" class="hidden">
+    <h2>Choose Companion</h2>
+    <div class="card" onclick="selectCharacter(0)">Luna (Devoted)</div>
+    <div class="card" onclick="selectCharacter(1)">Mia (Flirty)</div>
+    <div class="card" onclick="selectCharacter(2)">Aria (Roleplay)</div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chatBox" class="hidden">
+    <div id="chat"></div>
+    <input id="msg" placeholder="Type message...">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
