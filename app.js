@@ -2,20 +2,40 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "YOUR_SUPABASE_ANON_KEY"
 );
 
 let user = null;
 let selectedCharacter = null;
 let characters = [];
 
-/* ---------------- AUTH ---------------- */
+/* =========================
+   LANGUAGE SYSTEM
+========================= */
+
+function getLanguage() {
+  return localStorage.getItem("lang") || navigator.language?.slice(0, 2) || "en";
+}
+
+document.getElementById("langSelect")?.addEventListener("change", (e) => {
+  localStorage.setItem("lang", e.target.value);
+});
+
+/* =========================
+   AUTH
+========================= */
 
 window.signup = async () => {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  await supabase.auth.signUp({ email, password });
+  const { error } = await supabase.auth.signUp({ email, password });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
   alert("Signed up! Now login.");
 };
 
@@ -23,20 +43,51 @@ window.login = async () => {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  const res = await supabase.auth.signInWithPassword({ email, password });
-  user = res.data.user;
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  user = data.user;
   loadCharacters();
 };
 
-/* ---------------- CHARACTERS ---------------- */
+/* =========================
+   CHARACTERS
+========================= */
 
 async function loadCharacters() {
-  const { data } = await supabase.from("characters").select("*");
-  characters = data;
+  const { data, error } = await supabase.from("characters").select("*");
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  characters = data || [];
 
   document.getElementById("loginBox").classList.add("hidden");
   document.getElementById("characterBox").classList.remove("hidden");
+
+  renderCharacterList();
+}
+
+function renderCharacterList() {
+  const container = document.getElementById("characterBox");
+  container.innerHTML = "<h2>Choose Companion</h2>";
+
+  characters.forEach((char, index) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerText = `${char.name} (${char.trait || "Companion"})`;
+    div.onclick = () => selectCharacter(index);
+    container.appendChild(div);
+  });
 }
 
 window.selectCharacter = (i) => {
@@ -44,77 +95,71 @@ window.selectCharacter = (i) => {
 
   document.getElementById("characterBox").classList.add("hidden");
   document.getElementById("chatBox").classList.remove("hidden");
+
+  document.getElementById("chat").innerHTML = "";
 };
 
-/* ---------------- CHAT ---------------- */
+/* =========================
+   CHAT → EDGE FUNCTION
+========================= */
 
 window.sendMessage = async () => {
-  const text = document.getElementById("msg").value;
+  const input = document.getElementById("msg");
+  const text = input.value.trim();
+
+  if (!text || !user || !selectedCharacter) return;
 
   renderMessage("user", text);
 
-  await supabase.from("messages").insert({
-    user_id: user.id,
-    character_id: selectedCharacter.id,
-    role: "user",
-    content: text
-  });
+  input.value = "";
 
-  const { data: mem } = await supabase
-    .from("memories")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("character_id", selectedCharacter.id);
+  const language = getLanguage();
 
-  const memoryText = mem?.map(m => m.memory_text).join(", ") || "";
+  try {
+    const res = await fetch(
+      "https://YOUR_PROJECT.functions.supabase.co/whisper-chat",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          character_id: selectedCharacter.id,
+          message: text,
+          language: language,
+        }),
+      }
+    );
 
-  const prompt = `
-${selectedCharacter.system_prompt}
+    const data = await res.json();
 
-Memory:
-${memoryText}
+    if (!data.ok) {
+      throw new Error(data.error || "AI request failed");
+    }
 
-User: ${text}
-Respond naturally as the character.
-`;
+    renderMessage("ai", data.reply);
 
-  const reply = await callGemini(prompt);
+    // Optional: future voice hook
+    // playVoice(data.reply, data.voice?.voice_id);
 
-  renderMessage("ai", reply);
-
-  await supabase.from("messages").insert({
-    user_id: user.id,
-    character_id: selectedCharacter.id,
-    role: "ai",
-    content: reply
-  });
-
-  document.getElementById("msg").value = "";
+  } catch (err) {
+    renderMessage("ai", "Sorry, something went wrong.");
+    console.error(err);
+  }
 };
+
+/* =========================
+   UI
+========================= */
 
 function renderMessage(role, text) {
   const div = document.createElement("div");
   div.className = "msg " + role;
+
   div.innerText = (role === "user" ? "You: " : "AI: ") + text;
+
   document.getElementById("chat").appendChild(div);
-}
 
-/* ---------------- GEMINI ---------------- */
-
-async function callGemini(prompt) {
-  const API_KEY = "YOUR_GEMINI_API_KEY";
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    }
-  );
-
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text;
+  // auto scroll
+  const chat = document.getElementById("chat");
+  chat.scrollTop = chat.scrollHeight;
 }
