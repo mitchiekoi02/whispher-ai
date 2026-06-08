@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "YOUR_SUPABASE_ANON_KEY"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
@@ -14,12 +14,12 @@ let characters = [];
 ========================= */
 
 function getLanguage() {
-  return localStorage.getItem("lang") || navigator.language?.slice(0, 2) || "en";
+  return (
+    localStorage.getItem("lang") ||
+    navigator.language?.slice(0, 2) ||
+    "en"
+  );
 }
-
-document.getElementById("langSelect")?.addEventListener("change", (e) => {
-  localStorage.setItem("lang", e.target.value);
-});
 
 /* =========================
    AUTH
@@ -31,10 +31,7 @@ window.signup = async () => {
 
   const { error } = await supabase.auth.signUp({ email, password });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
   alert("Signed up! Now login.");
 };
@@ -48,10 +45,7 @@ window.login = async () => {
     password,
   });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
   user = data.user;
   loadCharacters();
@@ -62,12 +56,11 @@ window.login = async () => {
 ========================= */
 
 async function loadCharacters() {
-  const { data, error } = await supabase.from("characters").select("*");
+  const { data, error } = await supabase
+    .from("characters")
+    .select("*");
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
   characters = data || [];
 
@@ -79,24 +72,34 @@ async function loadCharacters() {
 
 function renderCharacterList() {
   const container = document.getElementById("characterBox");
+
   container.innerHTML = "<h2>Choose Companion</h2>";
 
-  characters.forEach((char, index) => {
+  characters.forEach((char) => {
     const div = document.createElement("div");
-    div.className = "card";
-    div.innerText = `${char.name} (${char.trait || "Companion"})`;
-    div.onclick = () => selectCharacter(index);
+
+    div.className = "character-card";
+    div.innerHTML = `
+      <h3>${char.name}</h3>
+      <p>${char.trait || "Companion AI"}</p>
+    `;
+
+    div.onclick = () => selectCharacter(char.id);
+
     container.appendChild(div);
   });
 }
 
-window.selectCharacter = (i) => {
-  selectedCharacter = characters[i];
+window.selectCharacter = (id) => {
+  selectedCharacter = characters.find((c) => c.id === id);
 
   document.getElementById("characterBox").classList.add("hidden");
   document.getElementById("chatBox").classList.remove("hidden");
 
   document.getElementById("chat").innerHTML = "";
+
+  document.getElementById("companionName").innerText =
+    selectedCharacter?.name || "Companion";
 };
 
 /* =========================
@@ -117,10 +120,12 @@ window.sendMessage = async () => {
 
   try {
     const res = await fetch(
-      "https://YOUR_PROJECT.functions.supabase.co/whisper-chat",
+      "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-chat",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           user_id: user.id,
           character_id: selectedCharacter.id,
@@ -133,33 +138,42 @@ window.sendMessage = async () => {
     const data = await res.json();
 
     if (!data.ok) {
-      throw new Error(data.error || "AI request failed");
+      throw new Error(data.error || "Request failed");
     }
 
     renderMessage("ai", data.reply);
 
-    // Optional: future voice hook
-    // playVoice(data.reply, data.voice?.voice_id);
+    /* =========================
+       🎤 VOICE PLAYBACK (ELEVENLABS)
+    ========================= */
+
+    if (data.audio) {
+      const audio = new Audio(data.audio);
+
+      audio.play().catch((err) => {
+        console.log("Audio blocked or failed:", err);
+      });
+    }
 
   } catch (err) {
-    renderMessage("ai", "Sorry, something went wrong.");
     console.error(err);
+    renderMessage("ai", "Sorry, something went wrong.");
   }
 };
 
 /* =========================
-   UI
+   UI RENDER
 ========================= */
 
 function renderMessage(role, text) {
   const div = document.createElement("div");
-  div.className = "msg " + role;
+
+  div.className = `message ${role}`;
 
   div.innerText = (role === "user" ? "You: " : "AI: ") + text;
 
-  document.getElementById("chat").appendChild(div);
-
-  // auto scroll
   const chat = document.getElementById("chat");
+  chat.appendChild(div);
+
   chat.scrollTop = chat.scrollHeight;
 }
