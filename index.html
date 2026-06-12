@@ -29,7 +29,9 @@ body {
   margin-top: 20px;
 }
 
-.hidden { display: none; }
+.hidden {
+  display: none;
+}
 
 input, button {
   width: 100%;
@@ -37,6 +39,7 @@ input, button {
   margin-top: 10px;
   border-radius: 10px;
   border: none;
+  box-sizing: border-box;
 }
 
 button {
@@ -45,10 +48,19 @@ button {
   cursor: pointer;
 }
 
+button:hover {
+  opacity: 0.9;
+}
+
+/* ======================
+   CHARACTER GRID
+====================== */
+
 .character-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
+  margin-top: 10px;
 }
 
 .character-card {
@@ -56,26 +68,42 @@ button {
   padding: 16px;
   border-radius: 12px;
   cursor: pointer;
+  transition: 0.2s;
 }
 
 .character-card:hover {
   background: #252535;
+  transform: translateY(-2px);
 }
 
+/* ======================
+   CHAT
+====================== */
+
 .chat-box {
-  height: 400px;
+  height: 420px;
   overflow-y: auto;
   background: #111116;
   padding: 12px;
   border-radius: 12px;
+  margin-top: 10px;
 }
 
 .message {
   margin: 8px 0;
+  white-space: pre-wrap;
 }
 
-.user { text-align: right; color: #7c4dff; }
-.ai { text-align: left; color: #ddd; }
+.user {
+  text-align: right;
+  color: #7c4dff;
+}
+
+.ai {
+  text-align: left;
+  color: #ddd;
+}
+
 </style>
 </head>
 
@@ -88,6 +116,7 @@ button {
   <!-- LOGIN -->
   <div id="loginBox" class="panel">
     <h2>Login</h2>
+
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Password">
 
@@ -98,13 +127,16 @@ button {
   <!-- CHARACTERS -->
   <div id="characterBox" class="panel hidden">
     <h2>Choose Character</h2>
+
+    <!-- IMPORTANT: JS injects cards here -->
     <div id="characterGrid" class="character-grid"></div>
   </div>
 
   <!-- CHAT -->
   <div id="chatBox" class="panel hidden">
 
-    <h2 id="charName"></h2>
+    <!-- FIXED: prevents crash -->
+    <h2 id="charName">Select a character</h2>
 
     <div id="chat" class="chat-box"></div>
 
