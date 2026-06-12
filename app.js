@@ -2,58 +2,49 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
-let selectedCharacter = null;
 let characters = [];
+let selectedCharacter = null;
 
-/* =========================
-   LANGUAGE SYSTEM
-========================= */
-
-function getLanguage() {
-  return (
-    localStorage.getItem("lang") ||
-    navigator.language?.slice(0, 2) ||
-    "en"
-  );
-}
-
-/* =========================
+/* ======================
    AUTH
-========================= */
+====================== */
 
 window.signup = async () => {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const email = email.value;
+  const password = password.value;
 
   const { error } = await supabase.auth.signUp({ email, password });
 
   if (error) return alert(error.message);
-
-  alert("Signed up! Now login.");
+  alert("Check email then login.");
 };
 
 window.login = async () => {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const emailVal = email.value;
+  const passVal = password.value;
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+    email: emailVal,
+    password: passVal,
   });
 
   if (error) return alert(error.message);
 
   user = data.user;
+
+  document.getElementById("loginBox").classList.add("hidden");
+  document.getElementById("characterBox").classList.remove("hidden");
+
   loadCharacters();
 };
 
-/* =========================
+/* ======================
    CHARACTERS
-========================= */
+====================== */
 
 async function loadCharacters() {
   const { data, error } = await supabase
@@ -64,116 +55,83 @@ async function loadCharacters() {
 
   characters = data || [];
 
-  document.getElementById("loginBox").classList.add("hidden");
-  document.getElementById("characterBox").classList.remove("hidden");
-
-  renderCharacterList();
+  renderCharacters();
 }
 
-function renderCharacterList() {
-  const container = document.getElementById("characterBox");
+function renderCharacters() {
+  const grid = document.getElementById("characterGrid");
+  grid.innerHTML = "";
 
-  container.innerHTML = "<h2>Choose Companion</h2>";
-
-  characters.forEach((char) => {
+  characters.forEach((c) => {
     const div = document.createElement("div");
-
     div.className = "character-card";
+
     div.innerHTML = `
-      <h3>${char.name}</h3>
-      <p>${char.trait || "Companion AI"}</p>
+      <h3>${c.name}</h3>
+      <p>${c.trait || ""}</p>
     `;
 
-    div.onclick = () => selectCharacter(char.id);
+    div.onclick = () => selectCharacter(c);
 
-    container.appendChild(div);
+    grid.appendChild(div);
   });
 }
 
-window.selectCharacter = (id) => {
-  selectedCharacter = characters.find((c) => c.id === id);
+function selectCharacter(c) {
+  selectedCharacter = c;
 
   document.getElementById("characterBox").classList.add("hidden");
   document.getElementById("chatBox").classList.remove("hidden");
 
+  document.getElementById("charName").innerText = c.name;
+
   document.getElementById("chat").innerHTML = "";
+}
 
-  document.getElementById("companionName").innerText =
-    selectedCharacter?.name || "Companion";
-};
-
-/* =========================
-   CHAT → EDGE FUNCTION
-========================= */
+/* ======================
+   CHAT
+====================== */
 
 window.sendMessage = async () => {
-  const input = document.getElementById("msg");
-  const text = input.value.trim();
-
+  const text = msg.value.trim();
   if (!text || !user || !selectedCharacter) return;
 
-  renderMessage("user", text);
+  addMessage("user", text);
+  msg.value = "";
 
-  input.value = "";
-
-  const language = getLanguage();
-
-  try {
-    const res = await fetch(
-      "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-chat",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          character_id: selectedCharacter.id,
-          message: text,
-          language: language,
-        }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (!data.ok) {
-      throw new Error(data.error || "Request failed");
+  const res = await fetch(
+    "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-chat",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        character_id: selectedCharacter.id,
+        message: text,
+        language: navigator.language?.slice(0, 2) || "en",
+      }),
     }
+  );
 
-    renderMessage("ai", data.reply);
+  const data = await res.json();
 
-    /* =========================
-       🎤 VOICE PLAYBACK (ELEVENLABS)
-    ========================= */
-
-    if (data.audio) {
-      const audio = new Audio(data.audio);
-
-      audio.play().catch((err) => {
-        console.log("Audio blocked or failed:", err);
-      });
-    }
-
-  } catch (err) {
-    console.error(err);
-    renderMessage("ai", "Sorry, something went wrong.");
+  if (!data.ok) {
+    addMessage("ai", "Error: " + data.error);
+    return;
   }
+
+  addMessage("ai", data.reply);
 };
 
-/* =========================
-   UI RENDER
-========================= */
+/* ======================
+   UI
+====================== */
 
-function renderMessage(role, text) {
+function addMessage(role, text) {
   const div = document.createElement("div");
-
   div.className = `message ${role}`;
+  div.textContent = text;
 
-  div.innerText = (role === "user" ? "You: " : "AI: ") + text;
-
-  const chat = document.getElementById("chat");
   chat.appendChild(div);
-
   chat.scrollTop = chat.scrollHeight;
 }
