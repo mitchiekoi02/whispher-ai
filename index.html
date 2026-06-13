@@ -210,12 +210,18 @@ button:hover {
     <!-- IMAGE PREVIEW -->
     <div id="preview" class="preview hidden"></div>
 
-    <!-- INPUT -->
+    <!-- INPUT AREA -->
     <div class="input-row">
 
       <input id="msg" placeholder="Type your message...">
 
-      <input id="imageInput" type="file" accept="image/*" hidden>
+      <input
+        id="imageInput"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+      >
 
       <button class="icon-btn"
         onclick="document.getElementById('imageInput').click()">
