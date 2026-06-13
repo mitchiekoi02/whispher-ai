@@ -5,7 +5,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 ====================== */
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 /* ======================
@@ -41,27 +41,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 ====================== */
 async function restoreSession() {
   try {
-    const { data: profile } = await supabase
-  .from("user_profiles")
-  .select("current_room_id")
-  .eq("user_id", user.id)
-  .single();
+    const { data: profile, error } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (error) throw error;
 
     $("loginBox")?.classList.add("hidden");
 
-    if (profile?.current_room_id) {
-      roomId = profile.current_room_id;
-
-      await loadRoom();
-
+    if (profile?.onboarding_completed) {
       $("chatBox")?.classList.remove("hidden");
-
       addMessage("ai", "Welcome back… resuming your experience.");
-
-      await loadRoomMemoryPreview();
     } else {
       $("onboardingBox")?.classList.remove("hidden");
     }
+
   } catch (err) {
     console.error("Restore session error:", err);
     $("onboardingBox")?.classList.remove("hidden");
@@ -99,13 +95,13 @@ window.login = async () => {
 /* ======================
    LOAD ROOM + CHARACTER
 ====================== */
-async function loadRoom() {
-  if (!roomId) return;
+async function loadRoom(roomIdParam) {
+  if (!roomIdParam) return;
 
   const { data: room } = await supabase
     .from("rooms")
     .select("*")
-    .eq("id", roomId)
+    .eq("id", roomIdParam)
     .single();
 
   if (!room) return;
@@ -117,6 +113,7 @@ async function loadRoom() {
     .single();
 
   character = char || null;
+  roomId = room.id;
 }
 
 /* ======================
@@ -143,26 +140,26 @@ window.startSession = async () => {
           user_id: user.id,
           name,
           location,
-          language_preference: language,
-          personality_preference: personality,
+          language,
+          personality,
         }),
       }
     );
 
     const data = await res.json();
 
-    if (!data.ok) {
-      alert(data.error || "Onboarding failed");
-      return;
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "Onboarding failed");
     }
 
-    roomId = data.session.room_id;
-    character = data.session.character;
+    roomId = data.room_id;
+    character = data.character;
 
     $("onboardingBox")?.classList.add("hidden");
     $("chatBox")?.classList.remove("hidden");
 
     addMessage("ai", `${character.name} is now with you...`);
+
   } catch (err) {
     console.error(err);
     alert("Network error during onboarding.");
@@ -202,7 +199,7 @@ window.setImage = (file) => {
 };
 
 /* ======================
-   CHAT CORE (STABLE)
+   CHAT CORE
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -237,25 +234,23 @@ window.sendMessage = async () => {
 
     const data = await res.json();
 
-    setTimeout(() => {
-      if (requestId !== requestCounter) return;
+    if (requestId !== requestCounter) return;
 
-      removeTyping();
+    removeTyping();
 
-      if (!data.ok) {
-        addMessage("ai", data.error || "Something went wrong");
-        return;
-      }
+    if (!data.ok) {
+      addMessage("ai", data.error || "Something went wrong");
+      return;
+    }
 
-      addMessage("ai", data.reply);
+    addMessage("ai", data.reply);
 
-      if (data.audio) {
-        if (currentAudio) currentAudio.pause();
+    if (data.audio) {
+      if (currentAudio) currentAudio.pause();
 
-        currentAudio = new Audio(data.audio);
-        currentAudio.play().catch(() => {});
-      }
-    }, 600);
+      currentAudio = new Audio(data.audio);
+      currentAudio.play().catch(() => {});
+    }
 
   } catch (err) {
     console.error(err);
@@ -265,14 +260,14 @@ window.sendMessage = async () => {
 };
 
 /* ======================
-   TYPING INDICATOR
+   TYPING
 ====================== */
 function showTyping() {
   removeTyping();
 
   const chat = $("chat");
-
   const div = document.createElement("div");
+
   div.className = "message ai";
   div.id = "typing";
   div.textContent = `${character?.name || "AI"} is thinking...`;
@@ -295,22 +290,16 @@ function addMessage(role, text) {
   const div = document.createElement("div");
   div.className = `message ${role}`;
 
-  if (role === "user") {
-    div.textContent = `You: ${text}`;
-  } else {
-    div.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:flex-start;">
-        <div>${text}</div>
-      </div>
-    `;
-  }
+  div.textContent = role === "user"
+    ? `You: ${text}`
+    : text;
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
 /* ======================
-   ENTER KEY SUPPORT
+   ENTER KEY
 ====================== */
 document.addEventListener("DOMContentLoaded", () => {
   const input = $("msg");
