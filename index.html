@@ -42,7 +42,7 @@ body {
 }
 
 /* ======================
-   INPUTS (FIXED CRITICAL BUG)
+   INPUTS
 ====================== */
 
 input {
@@ -54,7 +54,7 @@ input {
   box-sizing: border-box;
 }
 
-/* ONLY BUTTONS (NOT INPUTS) */
+/* BUTTONS */
 button {
   padding: 12px 14px;
   border-radius: 10px;
@@ -78,44 +78,14 @@ button:hover {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 60px 0 60px;
+  margin: 60px 0;
 }
 
 .logo-header img {
   height: 120px;
   max-width: 420px;
-  width: auto;
   object-fit: contain;
   filter: drop-shadow(0 12px 30px rgba(0,0,0,0.6));
-}
-
-/* ======================
-   CHARACTER SCREEN
-====================== */
-
-.character-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 22px;
-}
-
-.character-card {
-  width: 160px;
-  cursor: pointer;
-  text-align: center;
-  transition: transform 0.25s ease;
-}
-
-.character-card img {
-  width: 160px;
-  height: 160px;
-  object-fit: cover;
-  border-radius: 18px;
-}
-
-.character-card:hover {
-  transform: scale(1.2);
 }
 
 /* ======================
@@ -148,7 +118,7 @@ button:hover {
 }
 
 /* ======================
-   INPUT ROW (FIXED LAYOUT)
+   INPUT ROW
 ====================== */
 
 .input-row {
@@ -158,13 +128,11 @@ button:hover {
   align-items: center;
 }
 
-/* BIG TEXT INPUT */
 .input-row input {
   flex: 1;
   margin-top: 0;
 }
 
-/* SMALL ICON BUTTON */
 .icon-btn {
   width: 44px;
   height: 44px;
@@ -175,7 +143,6 @@ button:hover {
   font-size: 18px;
 }
 
-/* SEND BUTTON NOT HUGE */
 .send-btn {
   width: 90px;
   height: 44px;
@@ -221,34 +188,34 @@ button:hover {
     <button onclick="signup()">Sign Up</button>
   </div>
 
-  <!-- CHARACTER -->
-  <div id="characterBox" class="panel hidden">
-    <h2>Who do you want to talk to?</h2>
-    <div id="characterGrid" class="character-grid"></div>
+  <!-- ONBOARDING (NEW) -->
+  <div id="onboardingBox" class="panel hidden">
+    <h2>Create your experience</h2>
+
+    <input id="name" placeholder="Your Name">
+    <input id="location" placeholder="Location">
+    <input id="language" placeholder="Language (e.g. en, tl, jp)">
+    <input id="personality" placeholder="Personality (friendly, calm, etc.)">
+
+    <button onclick="startSession()">Start Experience</button>
   </div>
 
   <!-- CHAT -->
   <div id="chatBox" class="panel hidden">
 
-    <h2 id="charName">Chat</h2>
+    <h2 id="charName">Whisper AI</h2>
 
     <div id="chat" class="chat-box"></div>
 
     <!-- IMAGE PREVIEW -->
     <div id="preview" class="preview hidden"></div>
 
-    <!-- INPUT AREA -->
+    <!-- INPUT -->
     <div class="input-row">
 
       <input id="msg" placeholder="Type your message...">
 
-      <input
-        id="imageInput"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-      >
+      <input id="imageInput" type="file" accept="image/*" hidden>
 
       <button class="icon-btn"
         onclick="document.getElementById('imageInput').click()">
