@@ -59,7 +59,7 @@ function removeTyping() {
   document.getElementById("typingIndicator")?.remove();
 }
 
-/* subtle reaction */
+/* subtle emotional response */
 function emotionalPreResponse(text) {
   const chat = $("chat");
   if (!chat) return;
@@ -175,9 +175,11 @@ function selectCharacter(c) {
 }
 
 /* ======================
-   IMAGE HANDLER (UPLOAD / CAMERA READY)
+   IMAGE HANDLER (CAMERA + UPLOAD READY)
 ====================== */
 window.setImage = (file) => {
+  if (!file) return;
+
   const reader = new FileReader();
 
   reader.onload = () => {
@@ -194,17 +196,18 @@ window.sendMessage = async () => {
   const input = $("msg");
   const text = input?.value?.trim();
 
-  if (!text || !user || !selectedCharacter) return;
+  if (!user || !selectedCharacter || (!text && !selectedImage)) return;
 
   const currentRequest = ++requestCounter;
 
-  addMessage("user", text);
+  addMessage("user", text || "[image]");
 
   input.value = "";
-  emotionalPreResponse(text);
+  emotionalPreResponse(text || "");
+
   showTyping(selectedCharacter.name);
 
-  const delay = getTypingDelay(text);
+  const delay = getTypingDelay(text || "");
 
   const imageToSend = selectedImage;
   selectedImage = null;
@@ -255,7 +258,7 @@ window.sendMessage = async () => {
 };
 
 /* ======================
-   ADD MESSAGE (PROFILE PIC AI)
+   MESSAGE RENDER (AVATAR AI)
 ====================== */
 function addMessage(role, text) {
   const chat = $("chat");
