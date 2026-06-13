@@ -11,14 +11,15 @@
 <style>
 
 /* ======================
-   BASE
+   BASE (CINEMATIC UPGRADE)
 ====================== */
 
 body {
   font-family: 'Inter', sans-serif;
-  background: #0f0f12;
+  background: radial-gradient(circle at top, #1a1a25, #0f0f12 60%);
   color: white;
   margin: 0;
+  overflow-x: hidden;
 }
 
 .container {
@@ -28,11 +29,13 @@ body {
 }
 
 .panel {
-  background: #17171c;
+  background: rgba(23, 23, 28, 0.85);
+  backdrop-filter: blur(14px);
   border-radius: 16px;
   padding: 20px;
   margin-top: 20px;
   position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
 }
 
 .hidden {
@@ -49,17 +52,19 @@ input, button {
 }
 
 button {
-  background: #7c4dff;
+  background: linear-gradient(135deg, #7c4dff, #9b6bff);
   color: white;
   cursor: pointer;
+  transition: 0.2s ease;
 }
 
 button:hover {
-  opacity: 0.9;
+  opacity: 0.95;
+  transform: translateY(-1px);
 }
 
 /* ======================
-   LOGIN
+   LOGIN (CINEMATIC CENTER)
 ====================== */
 
 #loginBox {
@@ -77,23 +82,25 @@ button:hover {
   position: relative;
 }
 
-/* blurred cinematic background */
-.netlix-bg {
+/* FIXED TYPO + CINEMATIC BACKDROP */
+.netflix-bg {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
-  filter: blur(40px) brightness(0.35);
-  transform: scale(1.2);
+  filter: blur(55px) brightness(0.25) saturate(1.3);
+  transform: scale(1.3);
   z-index: 0;
-  transition: 0.4s ease;
+  transition: 0.6s ease;
 }
 
-/* dark overlay */
+/* animated glow overlay */
 .netflix-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(0,0,0,0.2), rgba(0,0,0,0.88));
+  background:
+    radial-gradient(circle at top, rgba(124,77,255,0.15), transparent 60%),
+    radial-gradient(circle at bottom, rgba(0,0,0,0.8), #0f0f12 70%);
   z-index: 1;
 }
 
@@ -104,6 +111,8 @@ button:hover {
   text-align: center;
   margin-bottom: 20px;
   font-size: 1.8rem;
+  letter-spacing: 0.5px;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.8);
 }
 
 /* grid */
@@ -116,21 +125,21 @@ button:hover {
   gap: 22px;
 }
 
-/* CARD */
+/* CARD (NETFLIX PROFILE STYLE) */
 .character-card {
   width: 160px;
   cursor: pointer;
   text-align: center;
-  transition: transform 0.25s ease;
+  transition: transform 0.25s ease, filter 0.25s ease;
 }
 
 .character-card img {
   width: 160px;
   height: 160px;
   object-fit: cover;
-  border-radius: 16px;
-  border: 2px solid transparent;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+  border-radius: 18px;
+  border: 2px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
   transition: 0.25s ease;
 }
 
@@ -139,32 +148,42 @@ button:hover {
   font-size: 14px;
 }
 
+.character-card p {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* HOVER FOCUS (NETFLIX STYLE ZOOM) */
 .character-card:hover {
-  transform: scale(1.15);
+  transform: scale(1.18);
+  z-index: 5;
 }
 
 .character-card:hover img {
   border: 2px solid #7c4dff;
-  box-shadow: 0 0 25px rgba(124,77,255,0.7);
+  box-shadow: 0 0 35px rgba(124,77,255,0.8);
 }
 
-/* dim others effect (optional JS support) */
+/* DIM OTHER CARDS (JS CAN TOGGLE) */
 .dim {
-  opacity: 0.4;
-  transform: scale(0.95);
+  opacity: 0.25;
+  transform: scale(0.92);
+  filter: blur(1px);
 }
 
 /* ======================
-   CHAT UI
+   CHAT UI (CINEMATIC CLEAN)
 ====================== */
 
 .chat-box {
   height: 420px;
   overflow-y: auto;
-  background: #111116;
+  background: rgba(17, 17, 22, 0.85);
+  backdrop-filter: blur(10px);
   padding: 12px;
   border-radius: 12px;
   margin-top: 10px;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.4);
 }
 
 .message {
@@ -174,12 +193,12 @@ button:hover {
 
 .user {
   text-align: right;
-  color: #7c4dff;
+  color: #b794ff;
 }
 
 .ai {
   text-align: left;
-  color: #ddd;
+  color: #e5e5e5;
 }
 
 </style>
