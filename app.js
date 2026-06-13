@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ2ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
@@ -20,40 +20,37 @@ const $ = (id) => document.getElementById(id);
 ====================== */
 
 window.signup = async () => {
-  const emailVal = $("email").value.trim();
-  const passVal = $("password").value;
+  const emailVal = $("email")?.value?.trim();
+  const passVal = $("password")?.value;
 
   const { error } = await supabase.auth.signUp({
     email: emailVal,
     password: passVal,
   });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
   alert("Account created. Please login.");
 };
 
 window.login = async () => {
-  const emailVal = $("email").value.trim();
-  const passVal = $("password").value;
+  const emailVal = $("email")?.value?.trim();
+  const passVal = $("password")?.value;
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: emailVal,
     password: passVal,
   });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
   user = data.user;
 
-  $("loginBox").classList.add("hidden");
-  $("characterBox").classList.remove("hidden");
+  const loginBox = $("loginBox");
+  const characterBox = $("characterBox");
+
+  if (loginBox) loginBox.classList.add("hidden");
+  if (characterBox) characterBox.classList.remove("hidden");
 
   await loadCharacters();
 };
@@ -63,12 +60,12 @@ window.login = async () => {
 ====================== */
 
 async function loadCharacters() {
-
   const { data, error } = await supabase
     .from("characters")
     .select("id,name,archetype,system_prompt,voice_id");
 
   if (error) {
+    console.error("Character load error:", error);
     alert(error.message);
     return;
   }
@@ -81,17 +78,13 @@ async function loadCharacters() {
 }
 
 function renderCharacters() {
-
   const grid = $("characterGrid");
-
   if (!grid) return;
 
   grid.innerHTML = "";
 
   characters.forEach((c) => {
-
     const div = document.createElement("div");
-
     div.className = "character-card";
 
     div.innerHTML = `
@@ -102,33 +95,33 @@ function renderCharacters() {
     div.onclick = () => selectCharacter(c);
 
     grid.appendChild(div);
-
   });
-
 }
 
-function selectCharacter(c) {
+/* ======================
+   CHARACTER SELECT
+====================== */
 
-  if (!c || !c.id) {
-    console.error("Invalid character:", c);
+function selectCharacter(c) {
+  if (!c?.id) {
+    console.error("Invalid character selected:", c);
     return;
   }
 
-  console.log("Selected character:", c);
-  console.log("Character UUID:", c.id);
-
   selectedCharacter = c;
 
-  $("characterBox").classList.add("hidden");
-  $("chatBox").classList.remove("hidden");
+  console.log("Selected character:", c.name, c.id);
 
+  const characterBox = $("characterBox");
+  const chatBox = $("chatBox");
   const nameEl = $("charName");
+  const chat = $("chat");
 
-  if (nameEl) {
-    nameEl.innerText = c.name;
-  }
+  if (characterBox) characterBox.classList.add("hidden");
+  if (chatBox) chatBox.classList.remove("hidden");
 
-  $("chat").innerHTML = "";
+  if (nameEl) nameEl.innerText = c.name;
+  if (chat) chat.innerHTML = "";
 }
 
 /* ======================
@@ -136,23 +129,15 @@ function selectCharacter(c) {
 ====================== */
 
 window.sendMessage = async () => {
-
   const input = $("msg");
+  const text = input?.value?.trim();
 
-  const text = input.value.trim();
-
-  if (!text || !user || !selectedCharacter) {
-    return;
-  }
-
-  console.log("Sending character ID:", selectedCharacter.id);
+  if (!text || !user || !selectedCharacter) return;
 
   addMessage("user", text);
-
   input.value = "";
 
   try {
-
     const response = await fetch(
       "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-chat",
       {
@@ -171,7 +156,7 @@ window.sendMessage = async () => {
 
     const data = await response.json();
 
-    console.log("Edge Function response:", data);
+    console.log("Edge response:", data);
 
     if (!data.ok) {
       addMessage("ai", data.error || "Unknown error");
@@ -181,16 +166,9 @@ window.sendMessage = async () => {
     addMessage("ai", data.reply);
 
   } catch (err) {
-
     console.error(err);
-
-    addMessage(
-      "ai",
-      "Sorry, something went wrong."
-    );
-
+    addMessage("ai", "Sorry, something went wrong.");
   }
-
 };
 
 /* ======================
@@ -198,19 +176,13 @@ window.sendMessage = async () => {
 ====================== */
 
 function addMessage(role, text) {
-
   const chat = $("chat");
-
   if (!chat) return;
 
   const div = document.createElement("div");
-
   div.className = `message ${role}`;
-
-  div.textContent = text;
+  div.textContent = `${role === "user" ? "You: " : "AI: "}${text}`;
 
   chat.appendChild(div);
-
   chat.scrollTop = chat.scrollHeight;
-
 }
