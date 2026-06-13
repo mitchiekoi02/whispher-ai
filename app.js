@@ -10,8 +10,8 @@ let characters = [];
 let selectedCharacter = null;
 let currentAudio = null;
 
-/* prevents old responses overwriting new ones */
 let requestCounter = 0;
+let selectedImage = null;
 
 /* ======================
    HELPERS
@@ -27,8 +27,12 @@ const characterImages = {
   Aria: "./images/aria.png",
 };
 
+function getCharacterImage(name) {
+  return characterImages[name] || "";
+}
+
 /* ======================
-   EMOTION ENGINE (ALIVE BUT CONTROLLED)
+   EMOTION ENGINE
 ====================== */
 function getTypingDelay(text = "") {
   const base = 650;
@@ -55,7 +59,7 @@ function removeTyping() {
   document.getElementById("typingIndicator")?.remove();
 }
 
-/* subtle emotional reaction (kept minimal to avoid clutter) */
+/* subtle reaction */
 function emotionalPreResponse(text) {
   const chat = $("chat");
   if (!chat) return;
@@ -133,13 +137,11 @@ function renderCharacters() {
   grid.innerHTML = "";
 
   characters.forEach((c) => {
-    const img = characterImages[c.name] || "";
-
     const div = document.createElement("div");
     div.className = "character-card";
 
     div.innerHTML = `
-      <img src="${img}" />
+      <img src="${getCharacterImage(c.name)}" />
       <h3>${c.name}</h3>
     `;
 
@@ -149,7 +151,7 @@ function renderCharacters() {
 }
 
 /* ======================
-   CHARACTER SELECT (LIVING TRANSITION)
+   SELECT CHARACTER
 ====================== */
 function selectCharacter(c) {
   selectedCharacter = c;
@@ -159,6 +161,8 @@ function selectCharacter(c) {
 
   $("charName").innerText = c.name;
   $("chat").innerHTML = "";
+
+  selectedImage = null;
 
   if (currentAudio) {
     currentAudio.pause();
@@ -171,7 +175,20 @@ function selectCharacter(c) {
 }
 
 /* ======================
-   CHAT CORE (ALIVE FLOW SYSTEM)
+   IMAGE HANDLER (UPLOAD / CAMERA READY)
+====================== */
+window.setImage = (file) => {
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    selectedImage = reader.result;
+  };
+
+  reader.readAsDataURL(file);
+};
+
+/* ======================
+   CHAT CORE
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -182,12 +199,15 @@ window.sendMessage = async () => {
   const currentRequest = ++requestCounter;
 
   addMessage("user", text);
-  input.value = "";
 
+  input.value = "";
   emotionalPreResponse(text);
   showTyping(selectedCharacter.name);
 
   const delay = getTypingDelay(text);
+
+  const imageToSend = selectedImage;
+  selectedImage = null;
 
   try {
     const res = await fetch(
@@ -199,6 +219,8 @@ window.sendMessage = async () => {
           user_id: user.id,
           character_id: selectedCharacter.id,
           message: text,
+          image: imageToSend,
+          emotion: "neutral",
           language: navigator.language?.slice(0, 2) || "en",
         }),
       }
@@ -233,7 +255,7 @@ window.sendMessage = async () => {
 };
 
 /* ======================
-   UI RENDER
+   ADD MESSAGE (PROFILE PIC AI)
 ====================== */
 function addMessage(role, text) {
   const chat = $("chat");
@@ -242,8 +264,34 @@ function addMessage(role, text) {
   const div = document.createElement("div");
   div.className = `message ${role}`;
 
-  div.textContent = role === "user" ? `You: ${text}` : text;
+  if (role === "ai" && selectedCharacter) {
+    div.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <img src="${getCharacterImage(selectedCharacter.name)}"
+             style="width:34px;height:34px;border-radius:50%;object-fit:cover;" />
+        <div>${text}</div>
+      </div>
+    `;
+  } else {
+    div.textContent = role === "user" ? `You: ${text}` : text;
+  }
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
+
+/* ======================
+   ENTER KEY SUPPORT
+====================== */
+document.addEventListener("DOMContentLoaded", () => {
+  const input = $("msg");
+
+  if (!input) return;
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      window.sendMessage();
+    }
+  });
+});
