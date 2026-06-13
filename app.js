@@ -31,7 +31,6 @@ window.signup = async () => {
   const password = $("password")?.value;
 
   const { error } = await supabase.auth.signUp({ email, password });
-
   if (error) return alert(error.message);
 
   alert("Check your email then login.");
@@ -50,12 +49,30 @@ window.login = async () => {
 
   user = data.user;
 
+  // CHECK IF USER HAS EXISTING ROOM (RESUME FEATURE)
+  const { data: profile } = await supabase
+    .from("customer_profiles")
+    .select("current_room_id")
+    .eq("id", user.id)
+    .single();
+
   $("loginBox").classList.add("hidden");
-  $("onboardingBox").classList.remove("hidden");
+
+  if (profile?.current_room_id) {
+    roomId = profile.current_room_id;
+
+    $("chatBox").classList.remove("hidden");
+
+    addMessage("ai", "Welcome back… resuming your experience.");
+
+    await loadRoomIntro();
+  } else {
+    $("onboardingBox").classList.remove("hidden");
+  }
 };
 
 /* ======================
-   ONBOARDING → ROOM CREATION
+   ONBOARDING → CREATE ROOM
 ====================== */
 window.startSession = async () => {
   const name = $("name").value.trim();
@@ -90,21 +107,36 @@ window.startSession = async () => {
     return;
   }
 
-  // STORE SESSION
   roomId = data.session.room_id;
   character = data.session.character;
 
   localStorage.setItem("room_id", roomId);
   localStorage.setItem("character", JSON.stringify(character));
 
-  // UI TRANSITION
   $("onboardingBox").classList.add("hidden");
   $("chatBox").classList.remove("hidden");
 
-  $("charName").innerText = character.name;
-
   addMessage("ai", `${character.name} is now with you...`);
 };
+
+/* ======================
+   LOAD ROOM INTRO (RESUME)
+====================== */
+async function loadRoomIntro() {
+  const { data: mem } = await supabase
+    .from("memories")
+    .select("memory_text")
+    .eq("user_id", user.id)
+    .eq("room_id", roomId)
+    .order("importance_score", { ascending: false })
+    .limit(5);
+
+  if (mem?.length) {
+    mem.forEach(m => {
+      addMessage("ai", `💭 Memory: ${m.memory_text}`);
+    });
+  }
+}
 
 /* ======================
    IMAGE HANDLER
@@ -212,16 +244,14 @@ function addMessage(role, text) {
   const div = document.createElement("div");
   div.className = `message ${role}`;
 
-  if (role === "ai" && character) {
+  if (role === "user") {
+    div.textContent = `You: ${text}`;
+  } else {
     div.innerHTML = `
       <div style="display:flex;gap:10px;align-items:flex-start;">
-        <div>
-          <div>${text}</div>
-        </div>
+        <div>${text}</div>
       </div>
     `;
-  } else {
-    div.textContent = role === "user" ? `You: ${text}` : text;
   }
 
   chat.appendChild(div);
