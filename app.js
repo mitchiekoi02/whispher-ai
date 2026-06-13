@@ -2,13 +2,16 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
 let characters = [];
 let selectedCharacter = null;
 let currentAudio = null;
+
+/* prevents old responses overwriting new ones */
+let requestCounter = 0;
 
 /* ======================
    HELPERS
@@ -25,49 +28,54 @@ const characterImages = {
 };
 
 /* ======================
-   EMOTION ENGINE (NEW)
+   EMOTION ENGINE (CLEANED)
 ====================== */
 function getTypingDelay(text = "") {
-  const base = 800;
-  const variability = Math.min(text.length * 12, 1800);
+  const base = 700;
+  const variability = Math.min(text.length * 10, 1400);
   return base + Math.random() * variability;
 }
 
-function showTyping(characterName) {
+function showTyping(name) {
+  removeTyping();
+
   const chat = $("chat");
   if (!chat) return;
 
   const div = document.createElement("div");
   div.className = "message ai typing";
   div.id = "typingIndicator";
-  div.textContent = `${characterName} is thinking...`;
+  div.textContent = `${name} is thinking...`;
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
 function removeTyping() {
-  const el = $("typingIndicator");
-  if (el) el.remove();
+  $("typingIndicator")?.remove();
 }
 
-/* emotional micro-responses BEFORE reply */
-function emotionalPreResponse(name, text) {
+/* subtle emotional reaction (lightweight, no spam) */
+function emotionalPreResponse(text) {
   const chat = $("chat");
   if (!chat) return;
 
-  let reaction = "";
+  let reaction = null;
 
-  if (text.includes("?")) reaction = "…";
-  else if (text.length < 10) reaction = "hmm.";
-  else if (text.toLowerCase().includes("love")) reaction = "…that’s a strong word.";
+  const lower = text.toLowerCase();
 
-  if (reaction) {
-    const div = document.createElement("div");
-    div.className = "message ai subtle";
-    div.textContent = reaction;
-    chat.appendChild(div);
-  }
+  if (lower.includes("love")) reaction = "…that’s a strong word.";
+  else if (text.endsWith("?")) reaction = "…";
+  else if (text.length < 8) reaction = "hmm.";
+
+  if (!reaction) return;
+
+  const div = document.createElement("div");
+  div.className = "message ai subtle";
+  div.textContent = reaction;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
 }
 
 /* ======================
@@ -142,7 +150,7 @@ function renderCharacters() {
 }
 
 /* ======================
-   CHARACTER SELECT (FEELS ALIVE)
+   CHARACTER SELECT
 ====================== */
 function selectCharacter(c) {
   selectedCharacter = c;
@@ -158,14 +166,13 @@ function selectCharacter(c) {
     currentAudio = null;
   }
 
-  // small emotional entrance moment
   setTimeout(() => {
     addMessage("ai", `${c.name} is here...`);
-  }, 300);
+  }, 250);
 }
 
 /* ======================
-   CHAT (EMOTIONALLY INTELLIGENT FLOW)
+   CHAT CORE (STABLE + ALIVE)
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -173,13 +180,12 @@ window.sendMessage = async () => {
 
   if (!text || !user || !selectedCharacter) return;
 
+  const currentRequest = ++requestCounter;
+
   addMessage("user", text);
   input.value = "";
 
-  /* STEP 1: emotional micro reaction */
-  emotionalPreResponse(selectedCharacter.name, text);
-
-  /* STEP 2: typing indicator */
+  emotionalPreResponse(text);
   showTyping(selectedCharacter.name);
 
   const delay = getTypingDelay(text);
@@ -202,6 +208,9 @@ window.sendMessage = async () => {
     const data = await res.json();
 
     setTimeout(() => {
+      /* ignore outdated responses */
+      if (currentRequest !== requestCounter) return;
+
       removeTyping();
 
       if (!data.ok) {
