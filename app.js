@@ -1,5 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
+// Your frontend client initialization using the public anon token configuration
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ2ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
@@ -16,7 +17,7 @@ let currentAudio = null;
 const $ = (id) => document.getElementById(id);
 
 /* ======================
-   IMAGE MAP (IMPORTANT FIX)
+   IMAGE MAP (FIXED FOR GITHUB PAGES)
 ====================== */
 const characterImages = {
   Luna: "./images/luna.png",
@@ -25,7 +26,7 @@ const characterImages = {
 };
 
 /* ======================
-   AUTH
+   AUTH PIPELINE
 ====================== */
 window.signup = async () => {
   const email = $("email")?.value?.trim();
@@ -87,13 +88,16 @@ function renderCharacters() {
   grid.innerHTML = "";
 
   characters.forEach((c) => {
-    const img = characterImages[c.name];
+    // Get the localized image path from your mapping, default to an empty string if missing
+    const img = characterImages[c.name] || "";
 
     const div = document.createElement("div");
     div.className = "character-card";
 
     div.innerHTML = `
-      <img src="${img}" alt="${c.name}" />
+      <div class="character-image">
+        <img src="${img}" alt="${c.name}" />
+      </div>
       <h3>${c.name}</h3>
     `;
 
@@ -114,10 +118,9 @@ function selectCharacter(c) {
   $("chatBox")?.classList.remove("hidden");
 
   $("charName").innerText = c.name;
-
   $("chat").innerHTML = "";
 
-  // stop audio if switching
+  // Stop current audio session if switching cards midway through speech
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
@@ -125,13 +128,18 @@ function selectCharacter(c) {
 }
 
 /* ======================
-   CHAT SYSTEM
+   CHAT SYSTEM & MEDIA PLAYER
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
   const text = input?.value?.trim();
 
   if (!text || !user || !selectedCharacter) return;
+
+  // Stop old audio playback if the user texts a new message quickly
+  if (currentAudio) {
+    currentAudio.pause();
+  }
 
   addMessage("user", text);
   input.value = "";
@@ -162,15 +170,15 @@ window.sendMessage = async () => {
 
     addMessage("ai", data.reply);
 
-    /* ======================
-       AUDIO (OPTIONAL ELEVENLABS READY)
-    ====================== */
+    /* ========================================================
+       AUDIO SUB-ENGINE (NATIVE BASE64 MP3 DECODER STREAM)
+       ======================================================== */
     if (data.audio) {
       if (currentAudio) currentAudio.pause();
 
       currentAudio = new Audio(data.audio);
       currentAudio.play().catch((err) => {
-        console.log("Autoplay blocked:", err);
+        console.log("Autoplay blocked by browser media execution policy:", err);
       });
     }
 
@@ -181,7 +189,7 @@ window.sendMessage = async () => {
 };
 
 /* ======================
-   UI RENDER
+   UI RENDER MATRIX
 ====================== */
 function addMessage(role, text) {
   const chat = $("chat");
@@ -190,9 +198,7 @@ function addMessage(role, text) {
   const div = document.createElement("div");
   div.className = `message ${role}`;
 
-  div.textContent = role === "user"
-    ? `You: ${text}`
-    : text;
+  div.textContent = role === "user" ? `You: ${text}` : text;
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
