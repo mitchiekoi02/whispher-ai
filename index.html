@@ -9,6 +9,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
+
+/* ======================
+   BASE
+====================== */
+
 body {
   font-family: 'Inter', sans-serif;
   background: #0f0f12;
@@ -27,6 +32,7 @@ body {
   border-radius: 16px;
   padding: 20px;
   margin-top: 20px;
+  position: relative;
 }
 
 .hidden {
@@ -53,31 +59,115 @@ button:hover {
 }
 
 /* ======================
-   CHARACTER GRID
+   LOGIN
 ====================== */
 
-.character-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.character-card {
-  background: #1b1b22;
-  padding: 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.character-card:hover {
-  background: #252535;
-  transform: translateY(-2px);
+#loginBox {
+  max-width: 420px;
+  margin: auto;
 }
 
 /* ======================
-   CHAT
+   NETFLIX CHARACTER SCREEN
+====================== */
+
+#characterBox {
+  overflow: hidden;
+  min-height: 60vh;
+}
+
+/* cinematic blurred background */
+.netflix-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) brightness(0.35);
+  transform: scale(1.2);
+  z-index: 0;
+  transition: 0.4s ease;
+}
+
+/* dark overlay */
+.netflix-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(0,0,0,0.2), rgba(0,0,0,0.85));
+  z-index: 1;
+}
+
+/* title */
+.netflix-title {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+}
+
+/* grid */
+.character-grid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* CARD */
+.character-card {
+  width: 160px;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.25s ease;
+}
+
+.character-card img {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+  transition: 0.25s ease;
+}
+
+.character-card h3 {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.character-card p {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* hover focus */
+.character-card:hover {
+  transform: scale(1.15);
+}
+
+.character-card:hover img {
+  border: 2px solid #7c4dff;
+  box-shadow: 0 0 25px rgba(124,77,255,0.7);
+}
+
+/* dim effect */
+.dim {
+  opacity: 0.4;
+  transform: scale(0.95);
+}
+
+/* fade transition into chat */
+.fade-out {
+  opacity: 0;
+  transform: scale(1.05);
+  transition: 0.4s ease;
+}
+
+/* ======================
+   CHAT UI
 ====================== */
 
 .chat-box {
@@ -124,18 +214,20 @@ button:hover {
     <button onclick="signup()">Sign Up</button>
   </div>
 
-  <!-- CHARACTERS -->
+  <!-- CHARACTER SCREEN (NETFLIX STYLE) -->
   <div id="characterBox" class="panel hidden">
-    <h2>Choose Character</h2>
 
-    <!-- IMPORTANT: JS injects cards here -->
+    <div class="netflix-bg" id="netflixBg"></div>
+    <div class="netflix-overlay"></div>
+
+    <h2 class="netflix-title">Who's watching?</h2>
+
     <div id="characterGrid" class="character-grid"></div>
   </div>
 
   <!-- CHAT -->
   <div id="chatBox" class="panel hidden">
 
-    <!-- FIXED: prevents crash -->
     <h2 id="charName">Select a character</h2>
 
     <div id="chat" class="chat-box"></div>
