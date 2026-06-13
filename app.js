@@ -42,10 +42,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function restoreSession() {
   try {
     const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("current_room_id, onboarding_completed")
-      .eq("user_id", user.id)
-      .single();
+  .from("user_profiles")
+  .select("current_room_id")
+  .eq("user_id", user.id)
+  .single();
 
     $("loginBox")?.classList.add("hidden");
 
