@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
@@ -13,34 +13,32 @@ let currentAudio = null;
 /* ======================
    HELPERS
 ====================== */
-
 const $ = (id) => document.getElementById(id);
 
 /* ======================
    AUTH
 ====================== */
-
 window.signup = async () => {
-  const emailVal = $("email")?.value?.trim();
-  const passVal = $("password")?.value;
+  const email = $("email")?.value?.trim();
+  const password = $("password")?.value;
 
   const { error } = await supabase.auth.signUp({
-    email: emailVal,
-    password: passVal,
+    email,
+    password,
   });
 
   if (error) return alert(error.message);
 
-  alert("Account created. Please login.");
+  alert("Check your email then login.");
 };
 
 window.login = async () => {
-  const emailVal = $("email")?.value?.trim();
-  const passVal = $("password")?.value;
+  const email = $("email")?.value?.trim();
+  const password = $("password")?.value;
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: emailVal,
-    password: passVal,
+    email,
+    password,
   });
 
   if (error) return alert(error.message);
@@ -56,16 +54,14 @@ window.login = async () => {
 /* ======================
    CHARACTERS
 ====================== */
-
 async function loadCharacters() {
   const { data, error } = await supabase
     .from("characters")
-    .select("id,name,archetype,system_prompt,voice_id");
+    .select("id,name,archetype,system_prompt,voice_id,image_url");
 
   if (error) {
     console.error(error);
-    alert(error.message);
-    return;
+    return alert(error.message);
   }
 
   characters = data || [];
@@ -82,17 +78,24 @@ function renderCharacters() {
     const div = document.createElement("div");
     div.className = "character-card";
 
-    // ✅ CLEAN UI: ONLY NAME
-    div.innerHTML = `<h3>${c.name}</h3>`;
+    const imgSrc = c.image_url?.startsWith("http")
+      ? c.image_url
+      : c.image_url?.startsWith("./")
+        ? c.image_url
+        : `./${c.image_url}`; // SAFE fallback for GitHub Pages
+
+    div.innerHTML = `
+      <div class="character-image">
+        <img src="${imgSrc}" alt="${c.name}" />
+      </div>
+      <h3>${c.name}</h3>
+      <p>${c.archetype || ""}</p>
+    `;
 
     div.onclick = () => selectCharacter(c);
     grid.appendChild(div);
   });
 }
-
-/* ======================
-   CHARACTER SELECT
-====================== */
 
 function selectCharacter(c) {
   if (!c?.id) return;
@@ -102,11 +105,9 @@ function selectCharacter(c) {
   $("characterBox")?.classList.add("hidden");
   $("chatBox")?.classList.remove("hidden");
 
-  const nameEl = $("charName");
-  const chat = $("chat");
+  $("charName").innerText = c.name;
 
-  if (nameEl) nameEl.innerText = c.name;
-  if (chat) chat.innerHTML = "";
+  $("chat").innerHTML = "";
 
   if (currentAudio) {
     currentAudio.pause();
@@ -117,7 +118,6 @@ function selectCharacter(c) {
 /* ======================
    CHAT
 ====================== */
-
 window.sendMessage = async () => {
   const input = $("msg");
   const text = input?.value?.trim();
@@ -128,11 +128,13 @@ window.sendMessage = async () => {
   input.value = "";
 
   try {
-    const response = await fetch(
+    const res = await fetch(
       "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-chat",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           user_id: user.id,
           character_id: selectedCharacter.id,
@@ -142,32 +144,34 @@ window.sendMessage = async () => {
       }
     );
 
-    const data = await response.json();
+    const data = await res.json();
 
     if (!data.ok) {
-      addMessage("ai", data.error || "Server error");
+      addMessage("ai", data.error || "Something went wrong");
       return;
     }
 
     addMessage("ai", data.reply);
 
+    /* OPTIONAL AUDIO SUPPORT */
     if (data.audio) {
       if (currentAudio) currentAudio.pause();
 
       currentAudio = new Audio(data.audio);
-      currentAudio.play().catch(() => {});
+      currentAudio.play().catch(() => {
+        console.log("Autoplay blocked");
+      });
     }
 
   } catch (err) {
     console.error(err);
-    addMessage("ai", "Something went wrong. Please try again.");
+    addMessage("ai", "Network error. Try again.");
   }
 };
 
 /* ======================
    UI
 ====================== */
-
 function addMessage(role, text) {
   const chat = $("chat");
   if (!chat) return;
