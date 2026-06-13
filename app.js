@@ -5,15 +5,16 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 ====================== */
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "YOUR_ANON_KEY"
 );
 
 /* ======================
-   STATE
+   STATE (ROOM-BASED SYSTEM)
 ====================== */
 let user = null;
 let roomId = null;
 let character = null;
+
 let currentAudio = null;
 let requestCounter = 0;
 let selectedImage = null;
@@ -22,6 +23,46 @@ let selectedImage = null;
    HELPERS
 ====================== */
 const $ = (id) => document.getElementById(id);
+
+/* ======================
+   INIT (AUTO RESTORE SESSION)
+====================== */
+document.addEventListener("DOMContentLoaded", async () => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session?.user) {
+    user = session.user;
+    await restoreSession();
+  }
+});
+
+/* ======================
+   SESSION RESTORE (RESUME SYSTEM)
+====================== */
+async function restoreSession() {
+  const { data: profile } = await supabase
+    .from("customer_profiles")
+    .select("current_room_id")
+    .eq("id", user.id)
+    .single();
+
+  $("loginBox")?.classList.add("hidden");
+
+  if (profile?.current_room_id) {
+    roomId = profile.current_room_id;
+
+    await loadRoom();
+    $("chatBox")?.classList.remove("hidden");
+
+    addMessage("ai", "Welcome back… resuming your conversation.");
+
+    await loadRoomMemoryPreview();
+  } else {
+    $("onboardingBox")?.classList.remove("hidden");
+  }
+}
 
 /* ======================
    AUTH
@@ -33,7 +74,7 @@ window.signup = async () => {
   const { error } = await supabase.auth.signUp({ email, password });
   if (error) return alert(error.message);
 
-  alert("Check your email then login.");
+  alert("Check your email to confirm your account.");
 };
 
 window.login = async () => {
@@ -48,40 +89,41 @@ window.login = async () => {
   if (error) return alert(error.message);
 
   user = data.user;
-
-  // CHECK IF USER HAS EXISTING ROOM (RESUME FEATURE)
-  const { data: profile } = await supabase
-    .from("customer_profiles")
-    .select("current_room_id")
-    .eq("id", user.id)
-    .single();
-
-  $("loginBox").classList.add("hidden");
-
-  if (profile?.current_room_id) {
-    roomId = profile.current_room_id;
-
-    $("chatBox").classList.remove("hidden");
-
-    addMessage("ai", "Welcome back… resuming your experience.");
-
-    await loadRoomIntro();
-  } else {
-    $("onboardingBox").classList.remove("hidden");
-  }
+  await restoreSession();
 };
 
 /* ======================
-   ONBOARDING → CREATE ROOM
+   LOAD ROOM + CHARACTER
+====================== */
+async function loadRoom() {
+  const { data: room } = await supabase
+    .from("rooms")
+    .select("*")
+    .eq("id", roomId)
+    .single();
+
+  if (!room) return;
+
+  const { data: char } = await supabase
+    .from("characters")
+    .select("*")
+    .eq("id", room.character_id)
+    .single();
+
+  character = char;
+}
+
+/* ======================
+   ONBOARDING → CREATE SESSION
 ====================== */
 window.startSession = async () => {
-  const name = $("name").value.trim();
-  const location = $("location").value.trim();
-  const language = $("language").value.trim();
-  const personality = $("personality").value.trim();
+  const name = $("name")?.value?.trim();
+  const location = $("location")?.value?.trim();
+  const language = $("language")?.value?.trim();
+  const personality = $("personality")?.value?.trim();
 
   if (!name || !language || !personality) {
-    alert("Please fill required fields");
+    alert("Please complete required fields.");
     return;
   }
 
@@ -110,20 +152,17 @@ window.startSession = async () => {
   roomId = data.session.room_id;
   character = data.session.character;
 
-  localStorage.setItem("room_id", roomId);
-  localStorage.setItem("character", JSON.stringify(character));
-
-  $("onboardingBox").classList.add("hidden");
-  $("chatBox").classList.remove("hidden");
+  $("onboardingBox")?.classList.add("hidden");
+  $("chatBox")?.classList.remove("hidden");
 
   addMessage("ai", `${character.name} is now with you...`);
 };
 
 /* ======================
-   LOAD ROOM INTRO (RESUME)
+   LOAD MEMORY PREVIEW (RESUME FEELING)
 ====================== */
-async function loadRoomIntro() {
-  const { data: mem } = await supabase
+async function loadRoomMemoryPreview() {
+  const { data } = await supabase
     .from("memories")
     .select("memory_text")
     .eq("user_id", user.id)
@@ -131,11 +170,11 @@ async function loadRoomIntro() {
     .order("importance_score", { ascending: false })
     .limit(5);
 
-  if (mem?.length) {
-    mem.forEach(m => {
-      addMessage("ai", `💭 Memory: ${m.memory_text}`);
-    });
-  }
+  if (!data?.length) return;
+
+  data.forEach((m) => {
+    addMessage("ai", `💭 ${m.memory_text}`);
+  });
 }
 
 /* ======================
@@ -152,7 +191,7 @@ window.setImage = (file) => {
 };
 
 /* ======================
-   CHAT CORE (ROOM BASED)
+   CHAT CORE (ROOM + MEMORY + RESUME)
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -160,10 +199,9 @@ window.sendMessage = async () => {
 
   if (!user || !roomId || (!text && !selectedImage)) return;
 
-  const currentRequest = ++requestCounter;
+  const requestId = ++requestCounter;
 
   addMessage("user", text || "[image]");
-
   input.value = "";
 
   showTyping();
@@ -189,7 +227,7 @@ window.sendMessage = async () => {
     const data = await res.json();
 
     setTimeout(() => {
-      if (currentRequest !== requestCounter) return;
+      if (requestId !== requestCounter) return;
 
       removeTyping();
 
@@ -207,7 +245,6 @@ window.sendMessage = async () => {
         currentAudio.play().catch(() => {});
       }
     }, 600);
-
   } catch (err) {
     removeTyping();
     addMessage("ai", "Connection unstable...");
@@ -215,7 +252,7 @@ window.sendMessage = async () => {
 };
 
 /* ======================
-   TYPING EFFECT
+   TYPING INDICATOR
 ====================== */
 function showTyping() {
   removeTyping();
