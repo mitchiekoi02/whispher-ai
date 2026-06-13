@@ -12,12 +12,43 @@ let selectedCharacter = null;
 let currentAudio = null;
 
 /* ======================
-   HELPERS
+   HELPERS (UNCHANGED CORE)
 ====================== */
 const $ = (id) => document.getElementById(id);
 
 /* ======================
-   IMAGE MAP (FIXED FOR GITHUB PAGES)
+   CINEMATIC UI STATE ENGINE (NEW VISUAL LAYER ONLY)
+====================== */
+function setNetflixBackground(image) {
+  const bg = $("netflixBg");
+  if (!bg || !image) return;
+
+  bg.style.backgroundImage = `url('${image}')`;
+}
+
+/* Dim non-hover cards (Netflix hover focus feel) */
+function applyFocusEffect(selectedName) {
+  document.querySelectorAll(".character-card").forEach((card) => {
+    const name = card.getAttribute("data-name");
+    if (!selectedName) return;
+
+    if (name !== selectedName) {
+      card.classList.add("dim");
+    } else {
+      card.classList.remove("dim");
+    }
+  });
+}
+
+/* reset dimming */
+function resetFocusEffect() {
+  document.querySelectorAll(".character-card").forEach((card) => {
+    card.classList.remove("dim");
+  });
+}
+
+/* ======================
+   IMAGE MAP (UNCHANGED)
 ====================== */
 const characterImages = {
   Luna: "./images/luna.png",
@@ -26,7 +57,7 @@ const characterImages = {
 };
 
 /* ======================
-   AUTH PIPELINE
+   AUTH PIPELINE (UNCHANGED LOGIC)
 ====================== */
 window.signup = async () => {
   const email = $("email")?.value?.trim();
@@ -79,7 +110,7 @@ async function loadCharacters() {
 }
 
 /* ======================
-   RENDER NETFLIX CARDS
+   RENDER NETFLIX CARDS (CINEMATIC UPGRADE ONLY)
 ====================== */
 function renderCharacters() {
   const grid = $("characterGrid");
@@ -88,11 +119,13 @@ function renderCharacters() {
   grid.innerHTML = "";
 
   characters.forEach((c) => {
-    // Get the localized image path from your mapping, default to an empty string if missing
     const img = characterImages[c.name] || "";
 
     const div = document.createElement("div");
     div.className = "character-card";
+
+    /* NEW: used for hover focus system */
+    div.setAttribute("data-name", c.name);
 
     div.innerHTML = `
       <div class="character-image">
@@ -101,13 +134,18 @@ function renderCharacters() {
       <h3>${c.name}</h3>
     `;
 
+    /* Netflix-style hover focus behavior */
+    div.onmouseenter = () => applyFocusEffect(c.name);
+    div.onmouseleave = resetFocusEffect;
+
     div.onclick = () => selectCharacter(c);
+
     grid.appendChild(div);
   });
 }
 
 /* ======================
-   SELECT CHARACTER
+   SELECT CHARACTER (CINEMATIC TRANSITION)
 ====================== */
 function selectCharacter(c) {
   if (!c?.id) return;
@@ -120,7 +158,13 @@ function selectCharacter(c) {
   $("charName").innerText = c.name;
   $("chat").innerHTML = "";
 
-  // Stop current audio session if switching cards midway through speech
+  /* CINEMATIC BACKGROUND SWITCH */
+  setNetflixBackground(characterImages[c.name]);
+
+  /* reset hover effects */
+  resetFocusEffect();
+
+  /* stop audio */
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
@@ -128,7 +172,7 @@ function selectCharacter(c) {
 }
 
 /* ======================
-   CHAT SYSTEM & MEDIA PLAYER
+   CHAT SYSTEM (UNCHANGED CORE)
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -136,10 +180,7 @@ window.sendMessage = async () => {
 
   if (!text || !user || !selectedCharacter) return;
 
-  // Stop old audio playback if the user texts a new message quickly
-  if (currentAudio) {
-    currentAudio.pause();
-  }
+  if (currentAudio) currentAudio.pause();
 
   addMessage("user", text);
   input.value = "";
@@ -170,9 +211,7 @@ window.sendMessage = async () => {
 
     addMessage("ai", data.reply);
 
-    /* ========================================================
-       AUDIO SUB-ENGINE (NATIVE BASE64 MP3 DECODER STREAM)
-       ======================================================== */
+    /* AUDIO ENGINE (UNCHANGED) */
     if (data.audio) {
       if (currentAudio) currentAudio.pause();
 
@@ -189,7 +228,7 @@ window.sendMessage = async () => {
 };
 
 /* ======================
-   UI RENDER MATRIX
+   UI RENDER (UNCHANGED CORE)
 ====================== */
 function addMessage(role, text) {
   const chat = $("chat");
