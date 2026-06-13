@@ -5,11 +5,11 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 ====================== */
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "YOUR_ANON_KEY_HERE"
 );
 
 /* ======================
-   STATE (ROOM-BASED SYSTEM)
+   STATE
 ====================== */
 let user = null;
 let roomId = null;
@@ -25,12 +25,10 @@ let selectedImage = null;
 const $ = (id) => document.getElementById(id);
 
 /* ======================
-   INIT (AUTO RESTORE SESSION)
+   INIT SESSION
 ====================== */
 document.addEventListener("DOMContentLoaded", async () => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
     user = session.user;
@@ -39,27 +37,33 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 /* ======================
-   SESSION RESTORE (RESUME SYSTEM)
+   RESTORE SESSION (FIXED)
 ====================== */
 async function restoreSession() {
-  const { data: profile } = await supabase
-    .from("customer_profiles")
-    .select("current_room_id")
-    .eq("id", user.id)
-    .single();
+  try {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("current_room_id, onboarding_completed")
+      .eq("user_id", user.id)
+      .single();
 
-  $("loginBox")?.classList.add("hidden");
+    $("loginBox")?.classList.add("hidden");
 
-  if (profile?.current_room_id) {
-    roomId = profile.current_room_id;
+    if (profile?.current_room_id) {
+      roomId = profile.current_room_id;
 
-    await loadRoom();
-    $("chatBox")?.classList.remove("hidden");
+      await loadRoom();
 
-    addMessage("ai", "Welcome back… resuming your conversation.");
+      $("chatBox")?.classList.remove("hidden");
 
-    await loadRoomMemoryPreview();
-  } else {
+      addMessage("ai", "Welcome back… resuming your experience.");
+
+      await loadRoomMemoryPreview();
+    } else {
+      $("onboardingBox")?.classList.remove("hidden");
+    }
+  } catch (err) {
+    console.error("Restore session error:", err);
     $("onboardingBox")?.classList.remove("hidden");
   }
 }
@@ -96,6 +100,8 @@ window.login = async () => {
    LOAD ROOM + CHARACTER
 ====================== */
 async function loadRoom() {
+  if (!roomId) return;
+
   const { data: room } = await supabase
     .from("rooms")
     .select("*")
@@ -110,11 +116,11 @@ async function loadRoom() {
     .eq("id", room.character_id)
     .single();
 
-  character = char;
+  character = char || null;
 }
 
 /* ======================
-   ONBOARDING → CREATE SESSION
+   ONBOARDING
 ====================== */
 window.startSession = async () => {
   const name = $("name")?.value?.trim();
@@ -127,41 +133,48 @@ window.startSession = async () => {
     return;
   }
 
-  const res = await fetch(
-    "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-onboarding",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: user.id,
-        name,
-        location,
-        language_preference: language,
-        personality_preference: personality,
-      }),
+  try {
+    const res = await fetch(
+      "https://zhdvwebtxiejrssudulj.supabase.co/functions/v1/whisper-onboarding",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          name,
+          location,
+          language_preference: language,
+          personality_preference: personality,
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert(data.error || "Onboarding failed");
+      return;
     }
-  );
 
-  const data = await res.json();
+    roomId = data.session.room_id;
+    character = data.session.character;
 
-  if (!data.ok) {
-    alert(data.error || "Onboarding failed");
-    return;
+    $("onboardingBox")?.classList.add("hidden");
+    $("chatBox")?.classList.remove("hidden");
+
+    addMessage("ai", `${character.name} is now with you...`);
+  } catch (err) {
+    console.error(err);
+    alert("Network error during onboarding.");
   }
-
-  roomId = data.session.room_id;
-  character = data.session.character;
-
-  $("onboardingBox")?.classList.add("hidden");
-  $("chatBox")?.classList.remove("hidden");
-
-  addMessage("ai", `${character.name} is now with you...`);
 };
 
 /* ======================
-   LOAD MEMORY PREVIEW (RESUME FEELING)
+   MEMORY PREVIEW
 ====================== */
 async function loadRoomMemoryPreview() {
+  if (!roomId || !user) return;
+
   const { data } = await supabase
     .from("memories")
     .select("memory_text")
@@ -170,9 +183,7 @@ async function loadRoomMemoryPreview() {
     .order("importance_score", { ascending: false })
     .limit(5);
 
-  if (!data?.length) return;
-
-  data.forEach((m) => {
+  data?.forEach((m) => {
     addMessage("ai", `💭 ${m.memory_text}`);
   });
 }
@@ -191,7 +202,7 @@ window.setImage = (file) => {
 };
 
 /* ======================
-   CHAT CORE (ROOM + MEMORY + RESUME)
+   CHAT CORE (STABLE)
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -245,7 +256,9 @@ window.sendMessage = async () => {
         currentAudio.play().catch(() => {});
       }
     }, 600);
+
   } catch (err) {
+    console.error(err);
     removeTyping();
     addMessage("ai", "Connection unstable...");
   }
@@ -277,6 +290,7 @@ function removeTyping() {
 ====================== */
 function addMessage(role, text) {
   const chat = $("chat");
+  if (!chat) return;
 
   const div = document.createElement("div");
   div.className = `message ${role}`;
