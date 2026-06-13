@@ -1,9 +1,8 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-// Supabase client (MUST be ANON KEY)
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
@@ -14,6 +13,7 @@ let currentAudio = null;
 /* ======================
    HELPERS
 ====================== */
+
 const $ = (id) => document.getElementById(id);
 
 /* ======================
@@ -63,7 +63,7 @@ async function loadCharacters() {
     .select("id,name,archetype,system_prompt,voice_id");
 
   if (error) {
-    console.error("Character load error:", error);
+    console.error(error);
     alert(error.message);
     return;
   }
@@ -82,13 +82,10 @@ function renderCharacters() {
     const div = document.createElement("div");
     div.className = "character-card";
 
-    div.innerHTML = `
-      <h3>${c.name}</h3>
-      <p>${c.archetype || "Companion"}</p>
-    `;
+    // ✅ CLEAN UI: ONLY NAME
+    div.innerHTML = `<h3>${c.name}</h3>`;
 
     div.onclick = () => selectCharacter(c);
-
     grid.appendChild(div);
   });
 }
@@ -98,10 +95,7 @@ function renderCharacters() {
 ====================== */
 
 function selectCharacter(c) {
-  if (!c?.id) {
-    console.error("Invalid character:", c);
-    return;
-  }
+  if (!c?.id) return;
 
   selectedCharacter = c;
 
@@ -157,19 +151,16 @@ window.sendMessage = async () => {
 
     addMessage("ai", data.reply);
 
-    // OPTIONAL: audio support (only if backend sends it)
     if (data.audio) {
       if (currentAudio) currentAudio.pause();
 
       currentAudio = new Audio(data.audio);
-      currentAudio.play().catch((e) => {
-        console.log("Audio blocked:", e);
-      });
+      currentAudio.play().catch(() => {});
     }
 
   } catch (err) {
     console.error(err);
-    addMessage("ai", "Network error. Please try again.");
+    addMessage("ai", "Something went wrong. Please try again.");
   }
 };
 
@@ -183,7 +174,7 @@ function addMessage(role, text) {
 
   const div = document.createElement("div");
   div.className = `message ${role}`;
-  div.textContent = (role === "user" ? "You: " : "AI: ") + text;
+  div.textContent = `${role === "user" ? "You: " : ""}${text}`;
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
