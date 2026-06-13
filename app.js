@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ2ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
@@ -28,8 +28,47 @@ const characterImages = {
 };
 
 /* ======================
+   🧠 EMOTIONAL STATE SYSTEM (STEP 2)
+====================== */
+
+const emotionState = {
+  Luna: { affection: 0, mood: "neutral" },
+  Mia: { affection: 0, mood: "neutral" },
+  Aria: { affection: 0, mood: "neutral" },
+};
+
+function getState(name) {
+  if (!emotionState[name]) {
+    emotionState[name] = { affection: 0, mood: "neutral" };
+  }
+  return emotionState[name];
+}
+
+/* updates emotional state based on user input */
+function updateEmotion(name, text) {
+  const state = getState(name);
+  const msg = text.toLowerCase();
+
+  // decay (prevents extreme swings)
+  state.affection *= 0.97;
+
+  if (msg.includes("love") || msg.includes("miss")) state.affection += 3;
+  else if (msg.includes("hello") || msg.includes("hi")) state.affection += 0.4;
+  else if (msg.includes("hate") || msg.includes("stupid")) state.affection -= 2;
+
+  // mood mapping
+  if (state.affection > 7) state.mood = "attached";
+  else if (state.affection > 3) state.mood = "warm";
+  else if (state.affection < -3) state.mood = "distant";
+  else state.mood = "neutral";
+
+  return state;
+}
+
+/* ======================
    EMOTION ENGINE (CLEANED)
 ====================== */
+
 function getTypingDelay(text = "") {
   const base = 700;
   const variability = Math.min(text.length * 10, 1400);
@@ -55,7 +94,7 @@ function removeTyping() {
   $("typingIndicator")?.remove();
 }
 
-/* subtle emotional reaction (lightweight, no spam) */
+/* subtle emotional reaction (enhanced with mood) */
 function emotionalPreResponse(text) {
   const chat = $("chat");
   if (!chat) return;
@@ -166,13 +205,18 @@ function selectCharacter(c) {
     currentAudio = null;
   }
 
+  const state = getState(c.name);
+
   setTimeout(() => {
-    addMessage("ai", `${c.name} is here...`);
+    addMessage(
+      "ai",
+      `${c.name} is here... (feels ${state.mood})`
+    );
   }, 250);
 }
 
 /* ======================
-   CHAT CORE (STABLE + ALIVE)
+   CHAT CORE (EMOTIONAL UPGRADE)
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -184,6 +228,9 @@ window.sendMessage = async () => {
 
   addMessage("user", text);
   input.value = "";
+
+  /* STEP 1: update emotion state */
+  updateEmotion(selectedCharacter.name, text);
 
   emotionalPreResponse(text);
   showTyping(selectedCharacter.name);
@@ -201,6 +248,7 @@ window.sendMessage = async () => {
           character_id: selectedCharacter.id,
           message: text,
           language: navigator.language?.slice(0, 2) || "en",
+          mood: getState(selectedCharacter.name).mood
         }),
       }
     );
@@ -208,7 +256,6 @@ window.sendMessage = async () => {
     const data = await res.json();
 
     setTimeout(() => {
-      /* ignore outdated responses */
       if (currentRequest !== requestCounter) return;
 
       removeTyping();
