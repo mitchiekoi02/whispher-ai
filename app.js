@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://zhdvwebtxiejrssudulj.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ3ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZHZ2ZWJ0eGllanJzc3VkdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NTE2MDUsImV4cCI6MjA5NjMyNzYwNX0.a2s-fwh7_SRSlTGqDl9ppiY6heKfYR-_Jxy7iERub6E"
 );
 
 let user = null;
@@ -14,6 +14,15 @@ let currentAudio = null;
    HELPERS
 ====================== */
 const $ = (id) => document.getElementById(id);
+
+/* ======================
+   IMAGE MAP (IMPORTANT FIX)
+====================== */
+const characterImages = {
+  Luna: "./images/luna.png",
+  Mia: "./images/mia.png",
+  Aria: "./images/aria.png",
+};
 
 /* ======================
    AUTH
@@ -52,15 +61,15 @@ window.login = async () => {
 };
 
 /* ======================
-   CHARACTERS
+   LOAD CHARACTERS
 ====================== */
 async function loadCharacters() {
   const { data, error } = await supabase
     .from("characters")
-    .select("id,name,archetype,system_prompt,voice_id,image_url");
+    .select("id,name,system_prompt,voice_id");
 
   if (error) {
-    console.error(error);
+    console.error("Character load error:", error);
     return alert(error.message);
   }
 
@@ -68,6 +77,9 @@ async function loadCharacters() {
   renderCharacters();
 }
 
+/* ======================
+   RENDER NETFLIX CARDS
+====================== */
 function renderCharacters() {
   const grid = $("characterGrid");
   if (!grid) return;
@@ -75,21 +87,14 @@ function renderCharacters() {
   grid.innerHTML = "";
 
   characters.forEach((c) => {
+    const img = characterImages[c.name];
+
     const div = document.createElement("div");
     div.className = "character-card";
 
-    const imgSrc = c.image_url?.startsWith("http")
-      ? c.image_url
-      : c.image_url?.startsWith("./")
-        ? c.image_url
-        : `./${c.image_url}`; // SAFE fallback for GitHub Pages
-
     div.innerHTML = `
-      <div class="character-image">
-        <img src="${imgSrc}" alt="${c.name}" />
-      </div>
+      <img src="${img}" alt="${c.name}" />
       <h3>${c.name}</h3>
-      <p>${c.archetype || ""}</p>
     `;
 
     div.onclick = () => selectCharacter(c);
@@ -97,6 +102,9 @@ function renderCharacters() {
   });
 }
 
+/* ======================
+   SELECT CHARACTER
+====================== */
 function selectCharacter(c) {
   if (!c?.id) return;
 
@@ -109,6 +117,7 @@ function selectCharacter(c) {
 
   $("chat").innerHTML = "";
 
+  // stop audio if switching
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
@@ -116,7 +125,7 @@ function selectCharacter(c) {
 }
 
 /* ======================
-   CHAT
+   CHAT SYSTEM
 ====================== */
 window.sendMessage = async () => {
   const input = $("msg");
@@ -153,24 +162,26 @@ window.sendMessage = async () => {
 
     addMessage("ai", data.reply);
 
-    /* OPTIONAL AUDIO SUPPORT */
+    /* ======================
+       AUDIO (OPTIONAL ELEVENLABS READY)
+    ====================== */
     if (data.audio) {
       if (currentAudio) currentAudio.pause();
 
       currentAudio = new Audio(data.audio);
-      currentAudio.play().catch(() => {
-        console.log("Autoplay blocked");
+      currentAudio.play().catch((err) => {
+        console.log("Autoplay blocked:", err);
       });
     }
 
   } catch (err) {
-    console.error(err);
+    console.error("Chat error:", err);
     addMessage("ai", "Network error. Try again.");
   }
 };
 
 /* ======================
-   UI
+   UI RENDER
 ====================== */
 function addMessage(role, text) {
   const chat = $("chat");
@@ -178,7 +189,10 @@ function addMessage(role, text) {
 
   const div = document.createElement("div");
   div.className = `message ${role}`;
-  div.textContent = `${role === "user" ? "You: " : ""}${text}`;
+
+  div.textContent = role === "user"
+    ? `You: ${text}`
+    : text;
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
